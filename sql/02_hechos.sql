@@ -98,3 +98,69 @@ SELECT
     shipping_fee,
     total_amount
 FROM raw.sales_order;
+
+
+
+-- TABLA DE HECHOS 2:
+-- ============================================
+-- FACT_SALES_ITEM
+-- Granos:  fila por ítem de pedido (un producto dentro de un pedido)
+-- ============================================
+
+CREATE TABLE fact_sales_item (
+    order_item_id   BIGINT NOT NULL PRIMARY KEY,
+    order_id        BIGINT NOT NULL,
+    date_id         INTEGER NOT NULL,
+    customer_id     INTEGER NOT NULL,
+    channel_id      INTEGER NOT NULL,
+    location_id     INTEGER,
+    store_id        INTEGER,
+    product_key     INTEGER NOT NULL,
+    status          VARCHAR(20) NOT NULL
+        CHECK (status IN ('CREATED', 'PAID', 'CANCELLED', 'FULFILLED', 'REFUNDED')),
+    quantity        INTEGER NOT NULL CHECK (quantity > 0),
+    unit_price      DECIMAL(12,2) NOT NULL,
+    discount_amount DECIMAL(12,2) NOT NULL,
+    line_total      DECIMAL(12,2) NOT NULL,
+
+    FOREIGN KEY (order_id)    REFERENCES fact_sales(order_id),
+    FOREIGN KEY (date_id)     REFERENCES dim_date(date_id),
+    FOREIGN KEY (customer_id) REFERENCES dim_customer(customer_id),
+    FOREIGN KEY (channel_id)  REFERENCES dim_channel(channel_id),
+    FOREIGN KEY (location_id) REFERENCES dim_location(location_id),
+    FOREIGN KEY (store_id)    REFERENCES dim_store(store_id),
+    FOREIGN KEY (product_key) REFERENCES dim_product(product_key)
+);
+
+INSERT INTO fact_sales_item (
+    order_item_id,
+    order_id,
+    date_id,
+    customer_id,
+    channel_id,
+    location_id,
+    store_id,
+    product_key,
+    status,
+    quantity,
+    unit_price,
+    discount_amount,
+    line_total
+)
+SELECT
+    i.order_item_id,
+    i.order_id,
+    CAST(STRFTIME(o.order_date, '%Y%m%d') AS INTEGER),
+    o.customer_id,
+    o.channel_id,
+    o.shipping_address_id,
+    o.store_id,
+    p.product_key,
+    o.status,
+    i.quantity,
+    i.unit_price,
+    i.discount_amount,
+    i.line_total
+FROM raw.sales_order_item AS i
+JOIN raw.sales_order AS o ON i.order_id = o.order_id
+JOIN dim_product AS p ON i.product_id = p.product_id;
