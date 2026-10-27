@@ -164,3 +164,43 @@ SELECT
 FROM raw.sales_order_item AS i
 JOIN raw.sales_order AS o ON i.order_id = o.order_id
 JOIN dim_product AS p ON i.product_id = p.product_id;
+
+
+-- Tabla de hehos 3
+-- ============================================
+-- FACT_NPS
+-- Una fila por respuesta de la encuesta NPS
+-- ============================================
+
+CREATE TABLE fact_nps (
+    nps_id       BIGINT NOT NULL PRIMARY KEY,
+    date_id      INTEGER NOT NULL,
+    customer_id  INTEGER,            -- puede ser NULL: respuesta anónima
+    channel_id   INTEGER NOT NULL,
+    score        SMALLINT NOT NULL CHECK (score BETWEEN 0 AND 10),
+    comment      VARCHAR,
+    responded_at TIMESTAMP NOT NULL,
+
+    FOREIGN KEY (date_id)     REFERENCES dim_date(date_id),
+    FOREIGN KEY (customer_id) REFERENCES dim_customer(customer_id),
+    FOREIGN KEY (channel_id)  REFERENCES dim_channel(channel_id)
+);
+
+INSERT INTO fact_nps (
+    nps_id,
+    date_id,
+    customer_id,
+    channel_id,
+    score,
+    comment,
+    responded_at
+)
+SELECT
+    nps_id,
+    CAST(STRFTIME(responded_at, '%Y%m%d') AS INTEGER),
+    customer_id,
+    channel_id,
+    score,
+    comment,
+    responded_at
+FROM raw.nps_response;
