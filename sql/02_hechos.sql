@@ -204,3 +204,120 @@ SELECT
     comment,
     responded_at
 FROM raw.nps_response;
+
+-- =============================================
+-- FACT_WEB_SESSION: una fila por sesión web
+-- =============================================
+CREATE TABLE fact_web_session (
+    session_id BIGINT NOT NULL PRIMARY KEY,
+    date_id INTEGER NOT NULL,
+    customer_id INTEGER,               -- NULL = visitante anónimo
+    traffic_source_key INTEGER NOT NULL,
+    device_key INTEGER NOT NULL,
+    started_at TIMESTAMP NOT NULL,
+    ended_at TIMESTAMP,                -- puede ser NULL
+    duration_minutes INTEGER,          -- NULL si no hay ended_at
+
+    FOREIGN KEY (date_id) REFERENCES dim_date(date_id),
+    FOREIGN KEY (customer_id) REFERENCES dim_customer(customer_id),
+    FOREIGN KEY (traffic_source_key) REFERENCES dim_traffic_source(traffic_source_key),
+    FOREIGN KEY (device_key) REFERENCES dim_device(device_key)
+);
+
+INSERT INTO fact_web_session
+SELECT
+    w.session_id,
+    CAST(STRFTIME(w.started_at, '%Y%m%d') AS INTEGER),
+    w.customer_id,
+    s.traffic_source_key,
+    d.device_key,
+    w.started_at,
+    w.ended_at,
+    DATE_DIFF('minute', w.started_at, w.ended_at)
+FROM raw.web_session AS w
+JOIN dim_traffic_source AS s ON s.source = COALESCE(w.source, 'unknown')
+JOIN dim_device AS d ON d.device = COALESCE(w.device, 'unknown');
+
+-- =============================================
+-- FACT_PAYMENT: una fila por pago
+-- =============================================
+CREATE TABLE fact_payment (
+    payment_id BIGINT NOT NULL PRIMARY KEY,
+    order_id BIGINT NOT NULL,
+    date_id INTEGER,                   -- NULL si el pago no se concretó (sin paid_at)
+    customer_id INTEGER NOT NULL,
+    channel_id INTEGER NOT NULL,
+    payment_method_key INTEGER NOT NULL,
+    status VARCHAR(20) NOT NULL
+        CHECK (status IN ('PENDING', 'PAID', 'FAILED', 'REFUNDED')),
+    amount DECIMAL(12,2) NOT NULL,
+    paid_at TIMESTAMP,
+    transaction_ref VARCHAR(80),
+
+    FOREIGN KEY (order_id) REFERENCES fact_sales(order_id),
+    FOREIGN KEY (date_id) REFERENCES dim_date(date_id),
+    FOREIGN KEY (customer_id) REFERENCES dim_customer(customer_id),
+    FOREIGN KEY (channel_id) REFERENCES dim_channel(channel_id),
+    FOREIGN KEY (payment_method_key) REFERENCES dim_payment_method(payment_method_key)
+);
+
+INSERT INTO fact_payment
+SELECT
+    p.payment_id,
+    p.order_id,
+    CAST(STRFTIME(p.paid_at, '%Y%m%d') AS INTEGER),   -- si paid_at es NULL, da NULL
+    o.customer_id,
+    o.channel_id,
+    m.payment_method_key,
+    p.status,
+    p.amount,
+    p.paid_at,
+    p.transaction_ref
+FROM raw.payment AS p
+JOIN raw.sales_order AS o ON o.order_id = p.order_id
+JOIN dim_payment_method AS m ON m.method = COALESCE(p.method, 'unknown');
+
+-- =============================================
+-- FACT_SHIPMENT: una fila por envío
+-- dim_date se usa dos veces (rol: fecha de envío y fecha de entrega)
+-- =============================================
+CREATE TABLE fact_shipment (
+    shipment_id BIGINT NOT NULL PRIMARY KEY,
+    order_id BIGINT NOT NULL,
+    customer_id INTEGER NOT NULL,
+    channel_id INTEGER NOT NULL,
+    carrier_key INTEGER NOT NULL,
+    shipped_date_id INTEGER,           -- NULL si todavía no salió
+    delivered_date_id INTEGER,         -- NULL si todavía no se entregó
+    tracking_number VARCHAR(60),
+    status VARCHAR(20) NOT NULL
+        CHECK (status IN ('READY', 'SHIPPED', 'DELIVERED', 'CANCELLED')),
+    shipped_at TIMESTAMP,
+    delivered_at TIMESTAMP,
+    delivery_days INTEGER,             -- días entre envío y entrega
+
+    FOREIGN KEY (order_id) REFERENCES fact_sales(order_id),
+    FOREIGN KEY (customer_id) REFERENCES dim_customer(customer_id),
+    FOREIGN KEY (channel_id) REFERENCES dim_channel(channel_id),
+    FOREIGN KEY (carrier_key) REFERENCES dim_carrier(carrier_key),
+    FOREIGN KEY (shipped_date_id) REFERENCES dim_date(date_id),
+    FOREIGN KEY (delivered_date_id) REFERENCES dim_date(date_id)
+);
+
+INSERT INTO fact_shipment
+SELECT
+    sh.shipment_id,
+    sh.order_id,
+    o.customer_id,
+    o.channel_id,
+    c.carrier_key,
+    CAST(STRFTIME(sh.shipped_at, '%Y%m%d') AS INTEGER),
+    CAST(STRFTIME(sh.delivered_at, '%Y%m%d') AS INTEGER),
+    sh.tracking_number,
+    sh.status,
+    sh.shipped_at,
+    sh.delivered_at,
+    DATE_DIFF('day', sh.shipped_at, sh.delivered_at)
+FROM raw.shipment AS sh
+JOIN raw.sales_order AS o ON o.order_id = sh.order_id
+JOIN dim_carrier AS c ON c.carrier = COALESCE(sh.carrier, 'unknown');
