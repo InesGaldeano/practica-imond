@@ -229,3 +229,49 @@ LEFT JOIN raw.address a
     ON s.address_id = a.address_id
 LEFT JOIN raw.province p
     ON a.province_id = p.province_id;
+
+-- =====================================================================
+-- DIMENSIONES NUEVAS (claves subrogadas con ROW_NUMBER)
+-- COALESCE(x, 'unknown'): si el valor viene vacío queda como 'unknown'
+-- para no perder filas en los JOIN de los hechos.
+-- =====================================================================
+
+-- DIM_TRAFFIC_SOURCE: una fila por origen de tráfico
+CREATE TABLE dim_traffic_source (
+    traffic_source_key INTEGER NOT NULL PRIMARY KEY,
+    source VARCHAR(50) NOT NULL UNIQUE
+);
+
+INSERT INTO dim_traffic_source
+SELECT ROW_NUMBER() OVER (ORDER BY source), source
+FROM (SELECT DISTINCT COALESCE(source, 'unknown') AS source FROM raw.web_session);
+
+-- DIM_DEVICE: una fila por tipo de dispositivo
+CREATE TABLE dim_device (
+    device_key INTEGER NOT NULL PRIMARY KEY,
+    device VARCHAR(30) NOT NULL UNIQUE
+);
+
+INSERT INTO dim_device
+SELECT ROW_NUMBER() OVER (ORDER BY device), device
+FROM (SELECT DISTINCT COALESCE(device, 'unknown') AS device FROM raw.web_session);
+
+-- DIM_PAYMENT_METHOD: una fila por método de pago
+CREATE TABLE dim_payment_method (
+    payment_method_key INTEGER NOT NULL PRIMARY KEY,
+    method VARCHAR(20) NOT NULL UNIQUE
+);
+
+INSERT INTO dim_payment_method
+SELECT ROW_NUMBER() OVER (ORDER BY method), method
+FROM (SELECT DISTINCT COALESCE(method, 'unknown') AS method FROM raw.payment);
+
+-- DIM_CARRIER: una fila por transportista
+CREATE TABLE dim_carrier (
+    carrier_key INTEGER NOT NULL PRIMARY KEY,
+    carrier VARCHAR(40) NOT NULL UNIQUE
+);
+
+INSERT INTO dim_carrier
+SELECT ROW_NUMBER() OVER (ORDER BY carrier), carrier
+FROM (SELECT DISTINCT COALESCE(carrier, 'unknown') AS carrier FROM raw.shipment);
