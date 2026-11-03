@@ -2,9 +2,7 @@
 
 Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tablas de hechos y 4 data marts.
 
-- **Tipos de dato y claves:** salen de los `CREATE TABLE` de `sql/01_dimensiones.sql`, `sql/02_hechos.sql` y `sql/04_marts.sql`.
-- **Cantidad de filas:** filas de datos de cada CSV de `dw/`, sin contar el encabezado.
-- **Clave:** `PK` = clave primaria; `FK` = clave foránea declarada con `FOREIGN KEY ... REFERENCES`. Si una columna no tiene una restricción declarada, figura como "ninguna", aunque en la práctica se use para unir tablas.
+
 ## Índice
 
 | Tabla | Tipo | Grano | Filas |
@@ -39,7 +37,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** dimensión
 - **Grano:** una fila por fecha calendario, del 2024-01-01 al 2025-09-30.
-- **Filas:** 639
 - **Origen:** se genera con `generate_series` (no viene de `raw/`).
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -54,8 +51,7 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 ### dim_mes
 
 - **Tipo:** dimensión (se crea en `04_marts.sql` para el dashboard)
-- **Grano:** una fila por mes.
-- **Filas:** 21 (de enero de 2024 a septiembre de 2025)
+- **Grano:** una fila por mes (de enero de 2024 a septiembre de 2025)
 - **Origen:** meses distintos de `dim_date`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -67,8 +63,7 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 ### dim_channel
 
 - **Tipo:** dimensión
-- **Grano:** una fila por canal de venta.
-- **Filas:** 2 (`ONLINE` = Tienda Online, `OFFLINE` = Tiendas Físicas)
+- **Grano:** una fila por canal de venta (`ONLINE` = Tienda Online, `OFFLINE` = Tiendas Físicas)
 - **Origen:** `raw.channel`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -81,7 +76,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** dimensión
 - **Grano:** una fila por cliente.
-- **Filas:** 3.471
 - **Origen:** `raw.customer`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -98,7 +92,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** dimensión
 - **Grano:** una fila por dirección.
-- **Filas:** 3.829
 - **Origen:** `raw.address` unida con `raw.province`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -115,7 +108,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** dimensión
 - **Grano:** una fila por tienda física.
-- **Filas:** 4
 - **Origen:** `raw.store` unida con `raw.address` y `raw.province`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -130,7 +122,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** dimensión
 - **Grano:** una fila por producto, con la jerarquía de categorías aplanada.
-- **Filas:** 2
 - **Origen:** `raw.product` unida con `raw.product_category` (categoría y categoría padre).
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -147,7 +138,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** dimensión
 - **Grano:** una fila por origen de tráfico web.
-- **Filas:** 4 (`ads`, `direct`, `organic`, `referral`)
 - **Origen:** valores distintos de `raw.web_session.source`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -159,7 +149,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** dimensión
 - **Grano:** una fila por tipo de dispositivo.
-- **Filas:** 3 (`desktop`, `mobile`, `tablet`)
 - **Origen:** valores distintos de `raw.web_session.device`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -171,7 +160,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** dimensión
 - **Grano:** una fila por método de pago.
-- **Filas:** 4 (`CARD`, `CASH`, `GATEWAY`, `TRANSFER`)
 - **Origen:** valores distintos de `raw.payment.method`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -183,7 +171,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** dimensión
 - **Grano:** una fila por transportista.
-- **Filas:** 1 (Correo Argentino)
 - **Origen:** valores distintos de `raw.shipment.carrier`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -199,7 +186,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** hecho
 - **Grano:** una fila por pedido (cabecera del pedido).
-- **Filas:** 11.969
 - **Origen:** `raw.sales_order`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -222,7 +208,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** hecho
 - **Grano:** una fila por ítem de pedido (un producto dentro de un pedido).
-- **Filas:** 14.573
 - **Origen:** `raw.sales_order_item` unida con `raw.sales_order` y `dim_product`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -245,7 +230,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** hecho
 - **Grano:** una fila por pago.
-- **Filas:** 11.969
 - **Origen:** `raw.payment` unida con `raw.sales_order` y `dim_payment_method`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -265,7 +249,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** hecho
 - **Grano:** una fila por envío. Usa `dim_date` dos veces (fecha de despacho y fecha de entrega).
-- **Filas:** 7.009
 - **Origen:** `raw.shipment` unida con `raw.sales_order` y `dim_carrier`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -287,7 +270,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** hecho
 - **Grano:** una fila por respuesta a la encuesta NPS.
-- **Filas:** 3.083
 - **Origen:** `raw.nps_response`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -304,7 +286,6 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 - **Tipo:** hecho
 - **Grano:** una fila por sesión web.
-- **Filas:** 100.363
 - **Origen:** `raw.web_session` unida con `dim_traffic_source` y `dim_device`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -328,7 +309,6 @@ Los data marts son tablas agregadas por mes que alimentan el dashboard. No tiene
 
 - **Tipo:** data mart
 - **Grano:** una fila por mes × canal × provincia.
-- **Filas:** 168
 - **Origen:** `fact_sales` unida con `dim_date`, `dim_channel` y `dim_location`. Solo incluye pedidos con estado `PAID` o `FULFILLED`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -344,7 +324,6 @@ Los data marts son tablas agregadas por mes que alimentan el dashboard. No tiene
 
 - **Tipo:** data mart
 - **Grano:** una fila por mes × producto.
-- **Filas:** 42
 - **Origen:** `fact_sales_item` unida con `dim_date` y `dim_product`. Solo incluye ítems de pedidos con estado `PAID` o `FULFILLED`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -359,7 +338,6 @@ Los data marts son tablas agregadas por mes que alimentan el dashboard. No tiene
 
 - **Tipo:** data mart
 - **Grano:** una fila por mes × canal.
-- **Filas:** 42
 - **Origen:** `fact_nps` unida con `dim_date` y `dim_channel`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
@@ -375,7 +353,6 @@ Los data marts son tablas agregadas por mes que alimentan el dashboard. No tiene
 
 - **Tipo:** data mart
 - **Grano:** una fila por mes.
-- **Filas:** 21
 - **Origen:** `fact_web_session` unida con `dim_date`.
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
