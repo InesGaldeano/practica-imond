@@ -539,7 +539,7 @@ El ticket y el NPS son cocientes, por eso se recalculan como suma sobre suma y n
 
 **Qué filtra cada segmentador:**
 
-- - **Mes** filtra todo, salvo la tarjeta de Usuarios activos: se alimenta de
+- **Mes** filtra todo, salvo la tarjeta de Usuarios activos: se alimenta de
   `mart_usuarios_ultimo_mes`, que no está relacionada con `dim_mes`, así que siempre
   muestra el último mes disponible.
 - **Canal** filtra Ventas, Pedidos, Ticket y NPS (los marts que tienen canal).
