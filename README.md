@@ -29,11 +29,12 @@ Qué contiene:
 
 - **11 dimensiones y 6 tablas de hechos** (ventas, ítems de venta, NPS, sesiones web,
   pagos y envíos).
-- **4 data marts** (ventas, producto, NPS y usuarios, todos mensuales) que dejan los
-  KPIs ya calculados en SQL.
+- - **5 data marts**: ventas, producto, NPS y usuarios, los cuatro mensuales, más
+  `mart_usuarios_ultimo_mes`, de una sola fila, que alimenta la tarjeta de usuarios
+  activos. Todos dejan los KPIs ya calculados en SQL.
 - **6 KPIs**: Ventas, Usuarios activos, Ticket promedio, NPS, Ventas por provincia y
   Ranking mensual por producto.
-- **Diccionario de datos** de las 21 tablas y un **dashboard** con filtros por mes,
+- **Diccionario de datos** de las 22 tablas y un **dashboard** con filtros por mes,
   canal, provincia y producto.
 
 Totales de control (si tu corrida da estos números, el pipeline está bien):
@@ -74,7 +75,7 @@ Qué hace cada comando:
    - crea la base `warehouse.duckdb`;
    - ejecuta en orden los archivos de `sql/` (`01_dimensiones.sql`, `02_hechos.sql`,
      `03_consultas.sql` y `04_marts.sql`) y muestra el resultado de cada `SELECT`;
-   - exporta las **21 tablas** como CSV a `dw/`;
+   - exporta las **22 tablas** como CSV a `dw/`;
    - dibuja el modelo en `dw/modelo_estrella.md`.
 
 Como todo se reconstruye desde cero en cada corrida, se puede repetir sin borrar nada
@@ -107,7 +108,7 @@ sql/01_dimensiones.sql  →  sql/02_hechos.sql  →  sql/03_consultas.sql  →  
    (dimensiones)            (tablas de hechos)     (KPIs de control)       (data marts)
    │
    ▼
-python run_sql.py  →  warehouse.duckdb  →  dw/ (21 CSV)
+python run_sql.py  →  warehouse.duckdb  →  dw/ (22 CSV)
                                               │
                                               ▼
                                   Power BI (dashboard/TP_PowerBI.pbix)
@@ -119,7 +120,7 @@ Estructura del repositorio:
 raw/                 datos de origen (no se modifican)
 sql/                 transformaciones: 01_dimensiones, 02_hechos, 03_consultas y 04_marts
 run_sql.py           ejecuta los archivos de sql/ y exporta el warehouse a dw/
-dw/                  data warehouse: 21 CSV generados por run_sql.py y el diagrama del modelo
+dw/                  data warehouse: 22 CSV generados por run_sql.py y el diagrama del modelo
 dashboard/           TP_PowerBI.pbix
 docs/                diccionario_datos.md
 assets/              DER del origen y capturas del dashboard
@@ -136,13 +137,13 @@ La base `warehouse.duckdb` y el entorno virtual `venv/` no se suben a GitHub: se
 3. **Consultas de control (`03`):** calculan los 6 KPIs sobre el modelo estrella y se verifican contra `generator/validate_raw.py`.
 4. **Data marts (`04`):** tablas pequeñas, ya resumidas por mes, que dejan cada KPI calculado.
 5. **Exportación (`run_sql.py`):** cada tabla se guarda como CSV en `dw/`.
-6. **Dashboard:** Power BI importa solo `dim_mes`, `dim_channel` y los 4 marts.
+6. **Dashboard:** Power BI importa solo `dim_mes`, `dim_channel` y los 5 marts.
 
 ### ¿Por qué hay data marts?
 
 - **Las medidas se calculan en SQL y el dashboard solo las muestra.** Así hay un único lugar donde se define cada KPI, y Power BI usa solo `SUM` y `DIVIDE`, sin JOIN ni cruces sobre tablas de hechos.
 - **Hay medidas que no se pueden sumar.** Los usuarios activos son clientes distintos (un cliente activo en dos meses se contaría dos veces), y el ticket promedio y el NPS son cocientes. Los marts guardan los componentes (por ejemplo, promotores y detractores) para recalcularlos bien con cualquier filtro.
-- **Son más livianos.** Los marts tienen entre 21 y 168 filas, contra las más de 100.000 de `fact_web_session`.
+- **Son más livianos.** Los marts tienen entre 21 y 168 filas (excepto el que tiene una fila), contra las más de 100.000 de `fact_web_session`.
 
 | Data mart | Grano (qué es una fila) | Filas | Alimenta |
 |---|---|---:|---|
@@ -150,8 +151,9 @@ La base `warehouse.duckdb` y el entorno virtual `venv/` no se suben a GitHub: se
 | `mart_producto_mensual` | mes × producto | 42 | Ranking mensual por producto |
 | `mart_nps_mensual` | mes × canal | 42 | NPS |
 | `mart_usuarios_mensual` | mes | 21 | Usuarios activos |
+| `mart_usuarios_ultimo_mes` | el último mes (por ahora septiembre 2025, pero si se actualiza cambia al último) | 1 | Tarjeta de Usuarios activos|
 
-Además, `dim_mes` (21 filas, una por mes) es la dimensión compartida por los cuatro marts: es lo que permite que un solo filtro de fecha afecte a todo el dashboard.
+Además, `dim_mes` (21 filas, una por mes) es la dimensión compartida por los cuatro marts mensuales: es lo que permite que un solo filtro de fecha afecte a todo el dashboard.
 
 
 ## 4. Modelo estrella
@@ -354,6 +356,10 @@ erDiagram
         INTEGER sesiones
         INTEGER sesiones_anonimas
     }
+    mart_usuarios_ultimo_mes {
+        DATE mes PK
+        INTEGER usuarios_activos
+    }
     mart_ventas_mensual {
         DATE mes PK
         VARCHAR canal PK
@@ -363,8 +369,6 @@ erDiagram
         DECIMAL ticket_promedio
     }
 ```
-
-
 El diagrama lo genera `run_sql.py` en [`dw/modelo_estrella.md`](./dw/modelo_estrella.md).
 
 ### Tablas de hechos y su grano
@@ -399,7 +403,7 @@ El diagrama lo genera `run_sql.py` en [`dw/modelo_estrella.md`](./dw/modelo_estr
 
 ## 5. Diccionario de datos
 
-El diccionario completo está en [`docs/diccionario_datos.md`](./docs/diccionario_datos.md). Documenta, para cada una de las 21 tablas, el grano y, por columna, el tipo, la clave (PK o FK), si acepta nulos, el dominio y una descripción. Resumen:
+El diccionario completo está en [`docs/diccionario_datos.md`](./docs/diccionario_datos.md). Documenta, para cada una de las 22 tablas, el grano y, por columna, el tipo, la clave (PK o FK), si acepta nulos, el dominio y una descripción. Resumen:
 
 | Tabla | Tipo | Una fila representa | Filas |
 |---|---|---|---:|
@@ -424,6 +428,7 @@ El diccionario completo está en [`docs/diccionario_datos.md`](./docs/diccionari
 | `mart_producto_mensual` | Data mart | mes × producto | 42 |
 | `mart_nps_mensual` | Data mart | mes × canal | 42 |
 | `mart_usuarios_mensual` | Data mart | un mes | 21 |
+| `mart_usuarios_ultimo_mes` | Data mart | el último mes con datos | 1 |
 
 
 ## 6. Supuestos y decisiones
@@ -526,14 +531,17 @@ Ventas           = SUM(mart_ventas_mensual[ventas])
 Pedidos          = SUM(mart_ventas_mensual[pedidos])
 Ticket Promedio  = DIVIDE([Ventas], [Pedidos])
 NPS              = DIVIDE(SUM(mart_nps_mensual[promotores]) - SUM(mart_nps_mensual[detractores]), SUM(mart_nps_mensual[respuestas])) * 100
-Usuarios Activos = SUM(mart_usuarios_mensual[usuarios_activos])
+Usuarios Activos              = SUM(mart_usuarios_mensual[usuarios_activos])
+Usuarios Activos (último mes) = SUM(mart_usuarios_ultimo_mes[usuarios_activos])
 ```
 
 El ticket y el NPS son cocientes, por eso se recalculan como suma sobre suma y no se promedian.
 
 **Qué filtra cada segmentador:**
 
-- **Mes** filtra todo, salvo la tarjeta de Usuarios activos (siempre muestra el último mes).
+- - **Mes** filtra todo, salvo la tarjeta de Usuarios activos: se alimenta de
+  `mart_usuarios_ultimo_mes`, que no está relacionada con `dim_mes`, así que siempre
+  muestra el último mes disponible.
 - **Canal** filtra Ventas, Pedidos, Ticket y NPS (los marts que tienen canal).
 - **Provincia** filtra solo las visuales de ventas, porque NPS, sesiones y productos no tienen ubicación.
 - **Producto** filtra solo el ranking, porque las ventas no se abren por producto.

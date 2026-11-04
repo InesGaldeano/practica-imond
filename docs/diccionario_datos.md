@@ -1,6 +1,6 @@
 # Diccionario de datos del data warehouse
 
-Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tablas de hechos y 4 data marts.
+Este documento describe las 22 tablas del data warehouse: 11 dimensiones, 6 tablas de hechos y 5 data marts.
 
 
 ## Índice
@@ -28,6 +28,7 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 | [mart_producto_mensual](#mart_producto_mensual) | Data mart | Mes × producto | 42 |
 | [mart_nps_mensual](#mart_nps_mensual) | Data mart | Mes × canal | 42 |
 | [mart_usuarios_mensual](#mart_usuarios_mensual) | Data mart | Mes | 21 |
+| [mart_usuarios_ultimo_mes](#mart_usuarios_ultimo_mes) | Data mart | Último mes con datos | 1 |
 
 ---
 
@@ -56,7 +57,7 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 | Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
 |---|---|---|---|---|---|
-| mes | DATE | PK | NOT NULL | libre | Primer día del mes (por ejemplo, 2024-02-01). Se usa para unir con la columna `mes` de los data marts, aunque esa relación no está declarada como FK. |
+| mes | DATE | PK | NOT NULL | libre | Primer día del mes (por ejemplo, 2024-02-01). Se usa para unir con la columna `mes` de los data marts mensuales, aunque esa relación no está declarada como FK. |
 | anio | INTEGER | ninguna | NOT NULL | libre | Año del mes. |
 | nro_mes | INTEGER | ninguna | NOT NULL | de 1 a 12 | Número de mes (1–12). |
 
@@ -303,7 +304,9 @@ Este documento describe las 21 tablas del data warehouse: 11 dimensiones, 6 tabl
 
 ## Data marts
 
-Los data marts son tablas agregadas por mes que alimentan el dashboard. No tienen FK declaradas: guardan los nombres (de canal, provincia o producto) en lugar de las claves de las dimensiones. La columna `mes` siempre es el primer día del mes y se puede unir con `dim_mes.mes`.
+Los data marts son tablas ya agregadas que alimentan el dashboard. No tienen FK declaradas: guardan los nombres (de canal, provincia o producto) en lugar de las claves de las dimensiones. La columna `mes` siempre es el primer día del mes.
+
+Los cuatro marts mensuales se unen con `dim_mes.mes`, que es lo que permite que un solo filtro de fecha afecte a todo el dashboard. `mart_usuarios_ultimo_mes` es la excepción: tiene una sola fila y a propósito no se relaciona con `dim_mes`, para que la tarjeta de usuarios activos muestre siempre el último mes disponible.
 
 ### mart_ventas_mensual
 
@@ -361,3 +364,14 @@ Los data marts son tablas agregadas por mes que alimentan el dashboard. No tiene
 | usuarios_activos | INTEGER | ninguna | NOT NULL | libre | Clientes identificados distintos con al menos una sesión en el mes (las sesiones anónimas no cuentan). |
 | sesiones | INTEGER | ninguna | NOT NULL | libre | Cantidad total de sesiones, anónimas incluidas. |
 | sesiones_anonimas | INTEGER | ninguna | NOT NULL | libre | Sesiones sin cliente identificado (`customer_id` nulo). |
+
+### mart_usuarios_ultimo_mes
+
+- **Tipo:** data mart
+- **Grano:** una sola fila, la del último mes con datos.
+- **Origen:** `mart_usuarios_mensual`, filtrado por `MAX(mes)`.
+
+| Columna | Tipo de dato | Clave | Nulo | Dominio | Descripción |
+|---|---|---|---|---|---|
+| mes | DATE | PK | NOT NULL | libre | Primer día del último mes con datos (hoy, 2025-09-01). |
+| usuarios_activos | INTEGER | ninguna | NOT NULL | libre | Clientes distintos con sesión web en ese mes (hoy, 1.041). |
