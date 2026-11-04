@@ -448,6 +448,8 @@ El diccionario completo está en [`docs/diccionario_datos.md`](./docs/diccionari
 
 - Los cálculos se hacen en SQL, en data marts (`sql/04_marts.sql`). Power BI solo muestra: usa `SUM` y `DIVIDE` sobre los marts, sin JOIN ni cruces sobre tablas de hechos.
 - Los filtros se relacionan a través de `dim_mes` y `dim_channel`.
+- Las tarjetas de Ventas y el gráfico “Ventas por mes” usan total_amount (cabecera del pedido, con IVA y envío): $382,41 M. El gráfico y el ranking por producto usan line_total (suma de las líneas, sin IVA ni envío): $309,89 M. La diferencia son los $72,5 M de IVA y envío, que no se pueden repartir por producto.
+- La tarjeta de Usuarios activos se alimenta de mart_usuarios_ultimo_mes, una tabla de una sola fila que el ETL arma con el último mes disponible. No responde al filtro de Mes a propósito: es un conteo de clientes distintos y no se puede sumar entre meses.
 - El mart de NPS guarda promotores y detractores, para recalcular el NPS global como cociente de sumas (el NPS no se puede promediar entre meses).
 - En Power Query se usó la configuración regional Inglés (Estados Unidos), porque los CSV usan punto decimal. `postal_code` es entero en el origen y `VARCHAR(20)` en `dim_location`.
 
