@@ -198,6 +198,10 @@ erDiagram
         INTEGER sesiones
         INTEGER sesiones_anonimas
     }
+    mart_usuarios_ultimo_mes {
+        DATE mes PK
+        INTEGER usuarios_activos
+    }
     mart_ventas_mensual {
         DATE mes PK
         VARCHAR canal PK

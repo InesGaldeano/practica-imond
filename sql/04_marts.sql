@@ -6,7 +6,8 @@ CREATE TABLE dim_mes (
 );
 INSERT INTO dim_mes
 SELECT DISTINCT MAKE_DATE(year, month, 1), year, month
-FROM dim_date;
+FROM dim_date
+ORDER BY 1;
 
 -- MART_VENTAS_MENSUAL: grano = mes x canal x provincia
 CREATE TABLE mart_ventas_mensual (
@@ -44,7 +45,7 @@ CREATE TABLE mart_producto_mensual (
 );
 INSERT INTO mart_producto_mensual
 SELECT mes, producto, ventas, unidades,
-       RANK() OVER (PARTITION BY mes ORDER BY ventas DESC)
+       RANK() OVER (PARTITION BY mes ORDER BY ventas DESC) AS ranking
 FROM (
     SELECT MAKE_DATE(d.year, d.month, 1) AS mes,
            p.name AS producto,
@@ -54,8 +55,8 @@ FROM (
     JOIN dim_date AS d ON d.date_id = i.date_id
     JOIN dim_product AS p ON p.product_key = i.product_key
     WHERE i.status IN ('PAID', 'FULFILLED')
-    GROUP BY MAKE_DATE(d.year, d.month, 1), p.name
-);
+    GROUP BY MAKE_DATE(d.year, d.month, 1), p.name)
+    ORDER BY mes, ranking;
 
 -- MART_NPS_MENSUAL: grano = mes x canal 
 CREATE TABLE mart_nps_mensual (
@@ -97,3 +98,13 @@ SELECT
 FROM fact_web_session AS w
 JOIN dim_date AS d ON d.date_id = w.date_id
 GROUP BY MAKE_DATE(d.year, d.month, 1);
+
+-- MART_USUARIOS_ULTIMO_MES: grano = una sola fila, el último mes con datos.
+CREATE TABLE mart_usuarios_ultimo_mes (
+    mes              DATE NOT NULL PRIMARY KEY,
+    usuarios_activos INTEGER NOT NULL
+);
+INSERT INTO mart_usuarios_ultimo_mes
+SELECT mes, usuarios_activos
+FROM mart_usuarios_mensual
+WHERE mes = (SELECT MAX(mes) FROM mart_usuarios_mensual);
